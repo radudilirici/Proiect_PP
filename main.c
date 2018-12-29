@@ -47,12 +47,12 @@ int main()
     // template matching
 
 	imagine img_test = citire_imagine(decriptat);
+	free(decriptat);
 
     colorare_imagine(&img_test, precizie);
 
 	scriere_imagine(marcat, img_test);
 
-	free(decriptat);
 	free(img_test.header);
     free(img_test.pixel);
 	free(marcat);
