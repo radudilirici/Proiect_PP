@@ -1,0 +1,23 @@
+# depslib dependency file v1.0
+1546088951 source:c:\users\wombat\desktop\proiect dilirici radu\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"functii_criptare.h"
+	"functii_cifre.h"
+
+1546077073 c:\users\wombat\desktop\proiect dilirici radu\functii_criptare.h
+
+1546077300 c:\users\wombat\desktop\proiect dilirici radu\functii_cifre.h
+
+1546089155 source:c:\users\wombat\desktop\proiect dilirici radu\functii_cifre.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<math.h>
+	"functii_criptare.h"
+
+1546088747 source:c:\users\wombat\desktop\proiect dilirici radu\functii_criptare.c
+	<stdio.h>
+	<stdlib.h>
+

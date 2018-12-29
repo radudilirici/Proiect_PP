@@ -14,19 +14,16 @@ void swap_u(unsigned int *a,unsigned int *b)
     *b = aux;
 }
 
-imagine new_imagine(unsigned int width, unsigned int height)
-{
-    imagine to_return;
-    to_return.header = (unsigned char*) malloc(54);
-    to_return.pixel = (unsigned char*) malloc(3 * width * height);
-    return to_return;
-}
-
 unsigned int *XoRshift32(unsigned int seed, unsigned int n)
 {
     unsigned int *to_fill, r = seed;
     int i;
     to_fill = (unsigned int*) malloc(n * sizeof(unsigned int));
+    if (to_fill == NULL)
+    {
+        printf("Nu mai e memorie pentru to_fill");
+        exit(1);
+    }
 
     for (i = 0; i < n; i++)
     {
@@ -39,6 +36,40 @@ unsigned int *XoRshift32(unsigned int seed, unsigned int n)
     return to_fill;
 }
 
+unsigned int width_from_header(unsigned char *header)
+{
+    typedef union{
+        unsigned int width;
+        unsigned char a[4];
+    } tip;
+
+    tip x;
+
+    x.a[0] = header[18];
+    x.a[1] = header[19];
+    x.a[2] = header[20];
+    x.a[3] = header[21];
+
+    return x.width;
+}
+
+unsigned int height_from_header(unsigned char *header)
+{
+    typedef union{
+        unsigned int height;
+        unsigned char a[4];
+    } tip;
+
+    tip x;
+
+    x.a[0] = header[22];
+    x.a[1] = header[23];
+    x.a[2] = header[24];
+    x.a[3] = header[25];
+
+    return x.height;
+}
+
 unsigned int width_value(FILE *f)
 {
     unsigned int width;
@@ -46,12 +77,6 @@ unsigned int width_value(FILE *f)
     fseek(f, 18, SEEK_SET);
     fread(&width, sizeof(unsigned int), 1, f);
     fseek(f, 0, SEEK_SET);
-
-    if (width % 4 != 0)
-    {
-        unsigned int  padding = 4 - width % 4;
-        width += padding;
-    }
 
     return width;
 }
@@ -67,13 +92,26 @@ unsigned int height_value(FILE *f)
     return height;
 }
 
+imagine new_imagine(unsigned int width, unsigned int height)
+{
+    imagine to_return;
+    to_return.header = (unsigned char*) malloc(54);
+    to_return.pixel = (unsigned char*) malloc(3 * width * height);
+    if (to_return.header == NULL || to_return.pixel == NULL)
+    {
+        printf("Nu mai e memorie pentru imagine noua");
+        exit(1);
+    }
+    return to_return;
+}
+
 imagine citire_imagine(char *path)
 {
     FILE *f = fopen(path, "rb");
 
     if (f == 0)
     {
-        printf("Nu s-a putut deschide fisierul cu imaginea sursa in functia citire_imagine\n");
+        printf("Nu s-a putut deschide imaginea %s\n", path);
         fclose(f);
         exit(1);
     }
@@ -84,25 +122,54 @@ imagine citire_imagine(char *path)
     imagine img_test = new_imagine(width, height);
 
     fread(img_test.header, 1, 54, f);
-    fread(img_test.pixel, 1, 3 * width * height, f);
+
+    int padding;
+    if (width % 4 != 0)
+        padding = 4 - (3 * width) % 4;
+    else
+        padding = 0;
+
+    int i;
+    for (i = 0; i < height; i++)
+    {
+        fread(&img_test.pixel[3 * width * i], 1, 3 * width , f);
+        fseek(f, padding, SEEK_CUR);
+    }
 
     fclose(f);
     return img_test;
 }
 
-void scriere_imagine(char *path, imagine img_test, unsigned int width, unsigned int height)
+void scriere_imagine(char *path, imagine img_test)
 {
     FILE *g = fopen(path, "wb");
 
     if (g == NULL)
     {
-        printf("Nu s-a putut crea fisierul pentru imaginea criptata\n");
+        printf("Nu s-a putut crea imaginea %s\n", path);
         fclose(g);
         exit(1);
     }
 
+    unsigned int width = width_from_header(img_test.header);
+    unsigned int height = height_from_header(img_test.header);
+
     fwrite(img_test.header, 1, 54, g);
-    fwrite(img_test.pixel, 1, 3 * width * height, g);
+
+    int padding;
+    if (width % 4 != 0)
+        padding = 4 - (3 * width) % 4;
+    else
+        padding = 0;
+
+    unsigned char zero = 0;
+    int i;
+    for (i = 0; i < height; i++)
+    {
+        fwrite(&img_test.pixel[3 * width * i], 1, 3 * width , g);
+        fflush(g);
+        fwrite(&zero, 1, padding, g);
+    }
 
     fclose(g);
 }
@@ -112,6 +179,11 @@ unsigned int *generare_permutare(unsigned int random_keys[], int n)
 	unsigned int *permutare;
 	int i, r;
 	permutare = (unsigned int*) malloc(n * sizeof(unsigned int));
+	if (permutare == NULL)
+    {
+        printf("Nu mai e memorie pentru permutare");
+        exit(1);
+    }
 
     for (i = 0; i < n; i++)
         permutare[i] = i;
@@ -126,7 +198,7 @@ unsigned int *generare_permutare(unsigned int random_keys[], int n)
 
 imagine permutare_pixeli(imagine img_test, unsigned int random_keys[], int width, int height)
 {
-    unsigned int p, *permutare;
+    unsigned int k, *permutare;
     int i;
 
     permutare = generare_permutare(random_keys, width * height);
@@ -138,10 +210,10 @@ imagine permutare_pixeli(imagine img_test, unsigned int random_keys[], int width
 
     for (i = 0; i < width * height; i++)
     {
-        p = permutare[i];
-        img_perm.pixel[3 * i] = img_test.pixel[3 * p];
-        img_perm.pixel[3 * i + 1] = img_test.pixel[3 * p + 1];
-        img_perm.pixel[3 * i + 2] = img_test.pixel[3 * p + 2];
+        k = permutare[i];
+        img_perm.pixel[3 * i] = img_test.pixel[3 * k];
+        img_perm.pixel[3 * i + 1] = img_test.pixel[3 * k + 1];
+        img_perm.pixel[3 * i + 2] = img_test.pixel[3 * k + 2];
     }
 
     free(permutare);
@@ -150,7 +222,7 @@ imagine permutare_pixeli(imagine img_test, unsigned int random_keys[], int width
 
 imagine permutare_inversa_pixeli(imagine img_test, unsigned int random_keys[], int width, int height)
 {
-    unsigned int p, *permutare;
+    unsigned int k, *permutare;
     int i;
 
     permutare = generare_permutare(random_keys, width * height);
@@ -162,11 +234,11 @@ imagine permutare_inversa_pixeli(imagine img_test, unsigned int random_keys[], i
 
     for (i = 0; i < width * height; i++)
     {
-        p = permutare[i];
-        p = permutare[i];
-        img_perm_inv.pixel[3 * p] = img_test.pixel[3 * i];
-        img_perm_inv.pixel[3 * p + 1] = img_test.pixel[3 * i + 1];
-        img_perm_inv.pixel[3 * p + 2] = img_test.pixel[3 * i + 2];
+        k = permutare[i];
+        k = permutare[i];
+        img_perm_inv.pixel[3 * k] = img_test.pixel[3 * i];
+        img_perm_inv.pixel[3 * k + 1] = img_test.pixel[3 * i + 1];
+        img_perm_inv.pixel[3 * k + 2] = img_test.pixel[3 * i + 2];
     }
 
     free(permutare);
@@ -177,11 +249,12 @@ unsigned char *u_int_to_3_u_char(unsigned int x)
 {
     unsigned char *a, x2, x1, x0;
     a = (unsigned char*) &x;
-    x2 = *a;
+    a = a + 1;
+    x0 = *a;
     a = a + 1;
     x1 = *a;
     a = a + 1;
-    x0 = *a;
+    x2 = *a;
 
     a = (unsigned char*) malloc(3);
     a[0] = x0;
@@ -296,7 +369,7 @@ imagine XOR_culori_invers(imagine criptata, unsigned int SV, unsigned int random
     {
         Rwh = u_int_to_3_u_char(random_keys[width * height + k]);
 
-        Ck1[0] = criptata.pixel[3 * (k - 1)];
+        Ck1[0] = criptata.pixel[3 * (k - 1)]; // diferenta e ca pe Ck1m il luam din imaginea initiala
         Ck1[1] = criptata.pixel[3 * (k - 1) + 1];
         Ck1[2] = criptata.pixel[3 * (k - 1) + 2];
 
@@ -324,24 +397,17 @@ void criptare(char *original, char *criptat, char *cheie)
 {
     imagine img_test = citire_imagine(original);
 
-    FILE *f = fopen(original, "rb");
-    if (f == NULL)
-    {
-        printf("Nu s-a putut deschide fisierul cu imaginea sursa in functia criptare\n");
-        fclose(f);
-        return;
-    }
-    unsigned width = width_value(f);
-    unsigned height = height_value(f);
-    fclose(f);
+    unsigned width = width_from_header(img_test.header);
+    unsigned height = height_from_header(img_test.header);
 
     FILE *k = fopen(cheie, "r");
     if (k == NULL)
     {
-        printf("Nu s-a putut deschide fisierul secret_key.txt in functia criptare\n");
+        printf("Nu s-a putut deschide imaginea %s in functia criptare\n", cheie);
         fclose(k);
-        return;
+        exit(1);
     }
+
     unsigned int seed, SV;
     fscanf(k, "%u", &seed);
     fscanf(k, " %u", &SV);
@@ -352,30 +418,25 @@ void criptare(char *original, char *criptat, char *cheie)
     img_test = permutare_pixeli(img_test, random_keys, width, height);
 
     img_test = XOR_culori(img_test, SV, random_keys, width, height);
+    free(random_keys);
 
-    scriere_imagine(criptat, img_test, width, height);
+    scriere_imagine(criptat, img_test);
 }
 
 void decriptare(char *criptat, char *decriptat, char *cheie)
 {
     imagine img_test = citire_imagine(criptat);
 
-    FILE *f = fopen(criptat, "rb");
-    if (f == NULL)
-    {
-        printf("Nu s-a putut deschide fisierul cu imaginea criptata in functia decriptare");
-        return;
-    }
-    unsigned width = width_value(f);
-    unsigned height = height_value(f);
-    fclose(f);
+    unsigned width = width_from_header(img_test.header);
+    unsigned height = height_from_header(img_test.header);
 
     FILE *k = fopen(cheie, "r");
     if (k == NULL)
     {
-        printf("Nu s-a putut deschide fisierul secret_key.txt in functia decriptare");
-        return;
+        printf("Nu s-a putut deschide imaginea %s in functia decriptare", cheie);
+        exit(1);
     }
+
     unsigned int seed, SV;
     fscanf(k, "%u", &seed);
     fscanf(k, "%u", &SV);
@@ -385,36 +446,29 @@ void decriptare(char *criptat, char *decriptat, char *cheie)
     img_test = XOR_culori_invers(img_test, SV, random_keys, width, height);
 
     img_test = permutare_inversa_pixeli(img_test, random_keys, width, height);
+    free(random_keys);
 
-    FILE *g = fopen(decriptat, "wb");
-    if (g == NULL)
-    {
-        printf("Nu s-a putut crea fisier pentru imaginea decriptata");
-        return;
-    }
-    scriere_imagine(decriptat, img_test, width, height);
-    fclose(g);
-
+    scriere_imagine(decriptat, img_test);
 }
 
-void print_hi(char *imagine)
+void print_chi(char *imagine)
 {
     FILE *f = fopen(imagine, "rb");
     if (f == NULL)
     {
-        printf("Nu s-a putut deschide imaginea sursa in functia de calculare a testului\n");
+        printf("Nu s-a putut deschide imaginea %s in functia de calculare a testului\n", imagine);
         fclose(f);
-        return;
+        exit(1);
     }
     unsigned int width = width_value(f);
     unsigned int height = height_value(f);
     fseek(f, 54, SEEK_SET);
 
     int k, *fR, *fG, *fB;
-    float f_barat, xR, xG, xB;
+    double f_barat, xR, xG, xB;
     unsigned char aux;
     unsigned int i;
-    f_barat = (float) (width * height) / 256;
+    f_barat = (double) (width * height) / 256;
     xR = xG = xB = 0;
     fR = (int*) calloc(256, sizeof(int));
     fG = (int*) calloc(256, sizeof(int));
@@ -442,7 +496,7 @@ void print_hi(char *imagine)
         xB += (fB[k]-f_barat)*(fB[k]-f_barat) / f_barat;
     }
 
-    printf("%.2f %.2f %.2f\n", xR, xG, xB);
+    printf("%.2lf %.2lf %.2lf\n", xR, xG, xB);
 
     free(fR);
     free(fG);

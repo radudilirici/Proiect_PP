@@ -1,0 +1,1 @@
+test.bmp z_cript.bmp z_decript.bmp z_test_marcat.bmp secret_key.txt 0.5
