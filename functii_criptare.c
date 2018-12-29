@@ -21,7 +21,7 @@ unsigned int *XoRshift32(unsigned int seed, unsigned int n)
     to_fill = (unsigned int*) malloc(n * sizeof(unsigned int));
     if (to_fill == NULL)
     {
-        printf("Nu mai e memorie pentru to_fill");
+        printf("Nu mai e memorie pentru vectorul de numere pseudo-randmo");
         exit(1);
     }
 
@@ -415,12 +415,18 @@ void criptare(char *original, char *criptat, char *cheie)
 
     unsigned int *random_keys = XoRshift32(seed, 2 * width * height);
 
-    img_test = permutare_pixeli(img_test, random_keys, width, height);
+    imagine img_perm = permutare_pixeli(img_test, random_keys, width, height);
+    free(img_test.header);
+    free(img_test.pixel);
+    imagine img_xor = XOR_culori(img_perm, SV, random_keys, width, height);
+    free(img_perm.header);
+    free(img_perm.pixel);
 
-    img_test = XOR_culori(img_test, SV, random_keys, width, height);
     free(random_keys);
 
-    scriere_imagine(criptat, img_test);
+    scriere_imagine(criptat, img_xor);
+    free(img_xor.header);
+    free(img_xor.pixel);
 }
 
 void decriptare(char *criptat, char *decriptat, char *cheie)
@@ -443,12 +449,18 @@ void decriptare(char *criptat, char *decriptat, char *cheie)
     fclose(k);
     unsigned int *random_keys = XoRshift32(seed, 2 * width * height);
 
-    img_test = XOR_culori_invers(img_test, SV, random_keys, width, height);
+    imagine img_xor = XOR_culori_invers(img_test, SV, random_keys, width, height);
+    free(img_test.header);
+    free(img_test.pixel);
+    imagine img_perm = permutare_inversa_pixeli(img_xor, random_keys, width, height);
+    free(img_xor.header);
+    free(img_xor.pixel);
 
-    img_test = permutare_inversa_pixeli(img_test, random_keys, width, height);
     free(random_keys);
 
-    scriere_imagine(decriptat, img_test);
+    scriere_imagine(decriptat, img_perm);
+    free(img_perm.header);
+    free(img_perm.pixel);
 }
 
 void print_chi(char *imagine)
