@@ -21,3 +21,25 @@
 	<stdio.h>
 	<stdlib.h>
 
+1546061196 source:c:\users\wombat\desktop\proiect_pp-master\functii_criptare.c
+	<stdio.h>
+	<stdlib.h>
+
+1546061196 source:c:\users\wombat\desktop\proiect_pp-master\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"functii_criptare.h"
+	"functii_cifre.h"
+
+1546061196 c:\users\wombat\desktop\proiect_pp-master\functii_criptare.h
+
+1546061196 c:\users\wombat\desktop\proiect_pp-master\functii_cifre.h
+
+1546118948 source:c:\users\wombat\desktop\proiect_pp-master\functii_cifre.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<math.h>
+	"functii_criptare.h"
+

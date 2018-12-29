@@ -32,35 +32,44 @@ imagine grayscale(imagine img_test)
 	return gray;
 }
 
-double medie_pixeli(imagine img_test)
+double medie_pixeli(imagine img_test, int shift, unsigned int width, unsigned int height)
 {
     f_medie++;
 	double medie = 0;
-	unsigned int width = width_from_header(img_test.header);
-	unsigned int height = height_from_header(img_test.header);
-
+	unsigned int width_test = width_from_header(img_test.header);
+	unsigned int height_test = height_from_header(img_test.header);
+	int i, j, pozitie;
 	int k, n = width * height;
 	for (k = 0; k < n; k++)
-		medie += img_test.pixel[3 * k];
+    {
+        i = k / width;
+		j = k % width;
+		pozitie = i * width_test + j + shift;
+		if (pozitie >= width_test * height_test)
+            break;
+        medie += img_test.pixel[3 * pozitie];
+    }
 
 	medie /= n;
 	return medie;
 }
 
-double omega(imagine img_test, unsigned int width, unsigned int height, double medie)
+double sigma(imagine img_test, unsigned int shift, unsigned int width, unsigned int height, double medie)
 {
-    f_omega++;
 	double o = 0;
 
 	int k, i, j, pozitie;
 	int n = width * height;
-	unsigned int full_width = width_from_header(img_test.header);
+	unsigned int width_test = width_from_header(img_test.header);
+	unsigned int height_test = height_from_header(img_test.header);
 
 	for (k = 0; k < n; k++)
 	{
 		i = k / width;
 		j = k % width;
-		pozitie = i * full_width + j;
+		pozitie = i * width_test + j + shift;
+		if (pozitie >= width_test * height_test)
+            break;
 
 		o += (img_test.pixel[3 * pozitie] - medie) * (img_test.pixel[3 * pozitie] - medie);
 	}
@@ -71,13 +80,13 @@ double omega(imagine img_test, unsigned int width, unsigned int height, double m
 	return o;
 }
 
-double corr(imagine *img_test, imagine sablon, int shift, double omega_f, double omega_S, double f_barat, double S_barat)
+double corr(imagine *img_test, imagine sablon, int shift, double sigma_f, double sigma_S, double f_barat, double S_barat)
 {
     f_corr++;
-	unsigned width_test = width_from_header((*img_test).header);
-	unsigned height_test = height_from_header((*img_test).header);
-	unsigned width_sablon = width_from_header(sablon.header);
-	unsigned height_sablon = height_from_header(sablon.header);
+	unsigned int width_test = width_from_header((*img_test).header);
+	unsigned int height_test = height_from_header((*img_test).header);
+	unsigned int width_sablon = width_from_header(sablon.header);
+	unsigned int height_sablon = height_from_header(sablon.header);
 
 	double corelatie = 0;
 
@@ -89,13 +98,16 @@ double corr(imagine *img_test, imagine sablon, int shift, double omega_f, double
 		j = k % width_sablon;
 		pozitie = i * width_test + j + shift;
 
-		if (pozitie > width_test * height_test)
+		if (pozitie >= width_test * height_test)
+		{
+            corelatie = -1;
             break;
+		}
 
 		corelatie += ((*img_test).pixel[3 * pozitie] - f_barat) * (sablon.pixel[3 * k] - S_barat);
 	}
 
-	corelatie /= (omega_f * omega_S);
+	corelatie /= (sigma_f * sigma_S);
 	corelatie /= n;
 	return corelatie;
 }
@@ -119,11 +131,11 @@ detectii template_matching(imagine img_test, imagine sablon, double prag, int ci
 	unsigned width_sablon = width_from_header(sablon.header);
 	unsigned height_sablon = height_from_header(sablon.header);
 
-	double f_barat = medie_pixeli(img_test);
-	double S_barat = medie_pixeli(sablon);
+	double f_barat;
+	double S_barat = medie_pixeli(sablon, 0, width_sablon, height_sablon);
 
-	double omega_f = omega(img_test, width_sablon, height_sablon, f_barat);
-	double omega_S = omega(sablon, width_sablon, height_sablon, S_barat);
+	double sigma_f;
+	double sigma_S = sigma(sablon, 0, width_sablon, height_sablon, S_barat);
 
 	detectii D;
 	int MAX_DET = 10000;
@@ -134,7 +146,9 @@ detectii template_matching(imagine img_test, imagine sablon, double prag, int ci
     {
         if (k >= MAX_DET)
             break;
-        double corelatie = corr(&img_test, sablon, i, omega_f, omega_S, f_barat, S_barat);
+        f_barat = medie_pixeli(img_test, i, width_sablon, height_sablon);
+        sigma_f = sigma(img_test, i, width_sablon, height_sablon, f_barat);
+        double corelatie = corr(&img_test, sablon, i, sigma_f, sigma_S, f_barat, S_barat);
 
         if (corelatie >= prag)
         {
@@ -207,7 +221,8 @@ int comp(const void *a, const void *b)
 
 void sortare(detectii *D)
 {
-    qsort((*D).fi, (*D).nr_elem - 1, sizeof(fereastra), comp);
+    if ((*D).nr_elem >= 2)
+        qsort((*D).fi, (*D).nr_elem - 1, sizeof(fereastra), comp);
 }
 
 double arie(fereastra fi)
@@ -341,7 +356,6 @@ void colorare_imagine(imagine *img_test, double prag)
 
     for (i = 0; i < 10; i ++)
     {
-
         sablon = citire_imagine(pathuri_sablon[i]);
         D_aux = template_matching(img_gray, sablon, prag, i);
         adaugare_detectii(&D, D_aux);
