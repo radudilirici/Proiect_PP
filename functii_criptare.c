@@ -508,7 +508,7 @@ void print_chi(char *imagine)
         xB += (fB[k]-f_barat)*(fB[k]-f_barat) / f_barat;
     }
 
-    printf("%.2lf %.2lf %.2lf\n", xR, xG, xB);
+    printf("testul chi: %.2lf %.2lf %.2lf\n", xR, xG, xB);
 
     free(fR);
     free(fG);
