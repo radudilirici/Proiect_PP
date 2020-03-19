@@ -1,4 +1,4 @@
-# Proiect_PP
+# BMP encryption and digit recognition
 
 A program that can encrypt / decrypt a BMP image using pixel permutation and the XOR operation. It can also recognize and highlight handwritten digits using a template matching algorithm.
 
